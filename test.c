@@ -6,6 +6,8 @@
 
 #define convention Karachi
 #define asrMethod shafai
+#define maghribMethod mInterval
+
 double latitude = 22.2833;
 double longitude = 70.7833;
 //in m
@@ -23,11 +25,19 @@ float timezone = 5.5;
 #define Tehran 5
 #define Qum 6
 
-#define ishraqInterval 15
+#define sunriseInterval (10/60.0)
+#define ishraqInterval (15/60.0)
+#define zawalInterval (5/60.0)
+#define sunsetInterval (3/60.0)
+#define sahriInterval (15/60.0)
+#define iftarInterval (15/60.0)
 
 //shafai includes Shafi'i, Maliki, Ja'fari, and Hanbali
 #define shafai 1
 #define hanafi 2
+
+#define mInterval 1
+#define mDirect 2
 
 enum events{
 			fajr, sunrise, ishraq, chast, zawal,
@@ -39,7 +49,7 @@ float angles[7][2] = {{18,17},{15,15},{19.5,17.5},{18.5,-1},{18,18},{17.7,14},{1
 
 int hm[13][2];
 double start[13];
-double end[13];
+// double end[13];
 
 double EqT, declination;
 
@@ -131,34 +141,66 @@ void calcTimes(int date, int month, int year)
 {
 	solarPosition(date, month, year);
 	double noonT = noon();
+	
 	event = fajr;
 	start[event] = noonT - sunAngle(angles[convention][0]);
 	dtohm(start[event], hm[event]);
+	
 	event = sunrise;
 	start[event] = noonT - sunAngle(0.8333);
 	dtohm(start[event], hm[event]);
+	
+	event = ishraq;
+	start[event] = start[sunrise] + ishraqInterval;
+	
+	event = chast;
+	start[event] = (start[sunrise] + start[zawal]) / 2;
+	
 	event = zawal;
 	start[event] = noonT;
 	dtohm(start[event], hm[event]);
+	
+	event = zuhar;
+	start[event] = noonT + zawalInterval;
+	dtohm(start[event], hm[event]);
+	
 	event = asr;
 	double temp = acot((asrMethod + tan(latitude - declination)));
 	start[event] = noonT + sunAngle(-temp);
 	dtohm(start[event], hm[event]);
+	
 	event = sunset;
 	start[event] = noonT + sunAngle(0.8333);
 	dtohm(start[event], hm[event]);
+	
 	//other method 
 	//sunset time + 1-2 mins.
 	event = maghrib;
-	start[event] = noonT + sunAngle(4);
+	if(maghribMethod == mInterval)
+	{
+		start[event] = start[sunset] + sunsetInterval;
+	}
+	else if(maghribMethod == mDirect)
+	{
+		start[event] = noonT + sunAngle(4);
+	}
 	dtohm(start[event], hm[event]);
+	
 	event = isha;
 	if(angles[convention][1] > 0)
 	{
 		start[event] = noonT + sunAngle(angles[convention][1]);
 		dtohm(start[event], hm[event]);
 	}
-	//TODO else for Makkah
+	else
+	{
+		//TODO 120 mins during Ramadan
+		start[event] = start[maghrib] + 1.5;
+	}
+	
+	event = tahajjud;
+	start[event] = 0.0;
+	
 }
 
 int main(int argc, char* argv[])
