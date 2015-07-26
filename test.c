@@ -77,8 +77,8 @@ unsigned long julian(int d, int m, int y)
 	}
 	int a = y/100;
 	//for integral ans(noon) -1524
- 	return ((int)(2 - a + (a / 4)) + d + (int)(365.25 * (y + 4716)) 
- 			+ (int)(30.6001 * (m + 1)) - 1524);
+	return ((long)(2 - a + (a / 4)) + d + (long)(365.25 * (y + 4716)) 
+	+ (long)(30.6001 * (m + 1)) - 1524);
 }
 
 void solarPosition(int date, int month, int year)
@@ -201,6 +201,23 @@ void calcTimes(int date, int month, int year)
 	event = tahajjud;
 	start[event] = 0.0;
 	
+}
+
+void hijri(int date, int month, int year, int* out)
+{
+	unsigned long jd = julian(date, month, year);
+	
+	int l = jd - 1948440 + 10632;
+	int n = (int)((l - 1) / 10631.0);
+	l = l - 10631 * n + 354;
+	int j = ((int)((10985 - l) / 5316.0)) * ((int)((50 * l) / 17719.0));
+	j += ((int)(l / 5670.0)) * ((int)((43 * l) / 15238.0));
+	int l1 = ((int)((30 - j) / 15.0)) * ((int)((17719 * j) / 50.0));
+	l1 +=  ((int)(j / 16.0)) * ((int)((15238 * j) / 43.0));
+	l = l - (l1 - 29);
+	out[1] = (int)((24 * l) / 709.0);
+	out[0] = l - (int)((709 * out[1]) / 24.0);
+	out[2] = 30 * n + j - 30;
 }
 
 int main(int argc, char* argv[])
