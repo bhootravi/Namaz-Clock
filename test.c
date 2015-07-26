@@ -220,6 +220,52 @@ void hijri(int date, int month, int year, int* out)
 	out[2] = 30 * n + j - 30;
 }
 
+void hijri_2(int date, int month, int year, int* out)
+{
+	int dayear[13] = {-1, 31, 28, 31, 30, 31, 30 , 31, 31, 30, 31, 30, 31};
+	int mday=0;
+	int i;
+	for(i = 1; i < month; i++)
+		mday = mday + dayear[i];
+	if((year % 4) == 0)
+		if(year % 100 == 0)
+		{
+			if(year % 400 == 0)
+				mday++;
+		}
+		else
+			mday++;
+	double greg = year + ((mday + date) / 365.0);
+	double islm = ((greg - 621.5774)*1000000)/ 970224.0;
+	
+	int islmyear = (int)(islm);
+	int islmday = (int)((islm - islmyear) * 360);
+	
+	int ayear = islmyear;
+	int aday = islmday;	
+	int amonth = 0;
+	
+	while (aday > 0)
+	{
+		amonth = amonth + 1;
+		aday = aday - 30;
+	}
+	aday = aday + 33;
+	if (aday > 30)
+	{
+		aday = aday - 30;
+		amonth = amonth + 1;
+	}
+	if (amonth == 13)
+	{
+		amonth = 1;
+		ayear = ayear + 1;
+	}
+	out[2] = ayear;
+	out[1] = amonth;
+	out[0] = aday;
+}
+
 int main(int argc, char* argv[])
 {
 	int date = 14, month = 7, year = 2015;
