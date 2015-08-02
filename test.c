@@ -1,5 +1,3 @@
-// Sunrise and Noon OK
-
 #include<stdio.h>
 #include<limits.h>
 #include<math.h>
@@ -48,6 +46,7 @@ enum events{
 float angles[7][2] = {{18,17},{15,15},{19.5,17.5},{18.5,-1},{18,18},{17.7,14},{16,14}};
 
 int hm[13][2];
+int greg_date[3], hijri_date[3];
 double start[13];
 // double end[13];
 
@@ -207,16 +206,16 @@ void hijri(int date, int month, int year, int* out)
 {
 	unsigned long jd = julian(date, month, year);
 	
-	int l = jd - 1948440 + 10632;
-	int n = (int)((l - 1) / 10631.0);
+	long l = jd - 1948440 + 10632;
+	long n = (long)((l - 1) / 10631.0);
 	l = l - 10631 * n + 354;
-	int j = ((int)((10985 - l) / 5316.0)) * ((int)((50 * l) / 17719.0));
-	j += ((int)(l / 5670.0)) * ((int)((43 * l) / 15238.0));
-	int l1 = ((int)((30 - j) / 15.0)) * ((int)((17719 * j) / 50.0));
-	l1 +=  ((int)(j / 16.0)) * ((int)((15238 * j) / 43.0));
+	long j = ((long)((10985 - l) / 5316.0)) * ((long)((50 * l) / 17719.0));
+	j += ((long)(l / 5670.0)) * ((long)((43 * l) / 15238.0));
+	long l1 = ((long)((30 - j) / 15.0)) * ((long)((17719 * j) / 50.0));
+	l1 +=  ((long)(j / 16.0)) * ((long)((15238 * j) / 43.0));
 	l = l - (l1 - 29);
-	out[1] = (int)((24 * l) / 709.0);
-	out[0] = l - (int)((709 * out[1]) / 24.0);
+	out[1] = (long)((24 * l) / 709.0);
+	out[0] = l - (long)((709 * out[1]) / 24.0);
 	out[2] = 30 * n + j - 30;
 }
 
@@ -269,7 +268,15 @@ void hijri_2(int date, int month, int year, int* out)
 int main(int argc, char* argv[])
 {
 	int date = 14, month = 7, year = 2015;
+	greg_date[0] = 26;
+	greg_date[1] = 8;
+	greg_date[2] = 2015;
 	calcTimes(date, month, year);
+	//to match calender from http://www.makkahcalendar.org/
+	if((greg_date[1]%2) == 0)
+		hijri(date, month, year, hijri_date);
+	else
+		hijri_2(date, month, year, hijri_date);
 
 // 	int zh = (int)zawal;
 // 	int zm = (int) ((zawal - zh) * 60);
