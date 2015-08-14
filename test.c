@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<limits.h>
 #include<math.h>
+#include <avr/interrupt.h>
 
 #define convention Karachi
 #define asrMethod shafai
@@ -45,16 +46,73 @@ enum events{
 
 float angles[7][2] = {{18,17},{15,15},{19.5,17.5},{18.5,-1},{18,18},{17.7,14},{16,14}};
 
-int hm[13][2];
-int greg_date[3], hijri_date[3];
 double start[13];
+int hm[13][2];
+int hijri_date[3];
+
+int time[3], greg_date[3];
+unsigned char days[13] = {-1,31,28,31,30,31,30,31,31,30,31,30,31};
+
 // double end[13];
+
+#define set_flag(bit) (flags |= (1 << (bit)))
+#define check_flag(bit) (flags & (1 << (bit)))
+#define clear_flag(bit) (flags &= !(1 << (bit)))
+
+//bit 0 - MIN_changed
+#define MIN_changed 0
+//bit 1 - HOUR_changed
+#define HOUR_changed 1
+//bit 2 - DATE_changed
+#define DATE_changed 2
+//bit 3 - LEAP_YEAR
+#define LEAP_YEAR 3
+unsigned char flags = 0;
 
 double EqT, declination;
 
-
-
 // double 
+
+ISR(TIMER1_COMPA_vect)
+{
+	time[2]++;
+	if(time[2] == 60)
+	{
+		time[2] = 0;
+		set_flag(MIN_changed);
+	}
+}
+
+void update_time(void)
+{
+	time[1]++;
+	if(time[1] == 60)
+	{
+		time[1] = 0;
+		time[0]++;
+		set_flag(HOUR_changed);
+	}
+	if(time[0] == 24)
+	{
+		time[0] = 0;
+		greg_date[0]++;
+		set_flag(DATE_changed);
+	}
+	unsigned char t = (check_flag(LEAP_YEAR) && greg_date[1] == 2) ? 1:0;
+	if(greg_date[0] > (days[greg_date[1]]+t))
+	{
+		//TODO february leap year
+		greg_date[0] = 1;
+		greg_date[1]++;
+	}
+	if(greg_date[1] == 13)
+	{
+		greg_date[1] = 1;
+		greg_date[2]++;
+		if((greg_date[2] & 3) == 0 && ((greg_date[2] % 25) != 0 || (greg_date[2] & 15) == 0))
+			set_flag(LEAP_YEAR);
+	}
+}
 
 double normalise(double n, double m)
 {
@@ -227,6 +285,7 @@ void hijri_2(int date, int month, int year, int* out)
 	for(i = 1; i < month; i++)
 		mday = mday + dayear[i];
 	if((year % 4) == 0)
+	{
 		if(year % 100 == 0)
 		{
 			if(year % 400 == 0)
@@ -234,6 +293,7 @@ void hijri_2(int date, int month, int year, int* out)
 		}
 		else
 			mday++;
+	}
 	double greg = year + ((mday + date) / 365.0);
 	double islm = ((greg - 621.5774)*1000000)/ 970224.0;
 	
@@ -265,18 +325,51 @@ void hijri_2(int date, int month, int year, int* out)
 	out[0] = aday;
 }
 
+void RTC_init(void)
+{
+	//Do this first
+	//Warning: When switching between asynchronous and synchronous clocking of
+	//Timer/Counter2, the Timer Registers TCNT2, OCR2, and TCCR2 might be corrupted.
+	//External Crystal
+	ASSR |= 0x08;
+	// Prescalar = f/1024
+	// Enable CTC mode
+	TCCR2 |= 0x0F;
+	// 2^15 ticks = 1 s for 32.768 kHz crystal
+	// Prescalar f/1024 = 2^10 ticks
+	OCR2 = 32;
+	//Wait for the settings to be updated
+	while((ASSR & 0x3) != 3);
+	//Enable Output Compare Match Interrupt 
+	TIMSK |= 0x80;
+}
+
 int main(int argc, char* argv[])
 {
-	int date = 14, month = 7, year = 2015;
 	greg_date[0] = 26;
 	greg_date[1] = 8;
 	greg_date[2] = 2015;
-	calcTimes(date, month, year);
-	//to match calender from http://www.makkahcalendar.org/
-	if((greg_date[1]%2) == 0)
-		hijri(date, month, year, hijri_date);
-	else
-		hijri_2(date, month, year, hijri_date);
+	int date = greg_date[0], month = greg_date[1], year = greg_date[3];
+	int h = time[0], m = time[1], s = time[2];
+	
+	RTC_init();
+	sei();
+	if(check_flag(MIN_changed))
+	{
+		update_time();
+		update_event();
+		clear_flag(MIN_changed);
+	}
+	if(check_flag(DATE_changed))
+	{
+		calcTimes(date, month, year);
+		//to match calender from http://www.makkahcalendar.org/
+		if((greg_date[1]%2) == 0)
+			hijri(date, month, year, hijri_date);
+		else
+			hijri_2(date, month, year, hijri_date);
+		clear_flag(DATE_changed);
+	}
 
 // 	int zh = (int)zawal;
 // 	int zm = (int) ((zawal - zh) * 60);
